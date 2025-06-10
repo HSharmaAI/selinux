@@ -50,10 +50,11 @@
         update_kernel_param: "{{ true if __test_update_kernel_param else omit }}"
       register: __disable_result
 
-    - name: Add selinux=0 to kernel args
+    - name: Add selinux=0 to kernel args (RHEL)
       when:
         - not __test_update_kernel_param
         - __disable_result.reboot_required
+        - ansible_distribution not in ['SLES', 'SUSE']
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
@@ -63,6 +64,30 @@
               - name: selinux
                 value: "0"
                 state: present
+
+    - name: Add selinux=0 to kernel args (SLES)
+      when:
+        - not __test_update_kernel_param
+        - __disable_result.reboot_required
+        - ansible_distribution in ['SLES', 'SUSE']
+      block:
+        - name: Create transactional update script
+          copy:
+            dest: /tmp/update-selinux.sh
+            content: |
+              #!/bin/bash
+              sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& selinux=0/' /etc/default/grub
+              grub2-mkconfig -o /boot/grub2/grub.cfg
+            mode: '0755'
+
+        - name: Run transactional update
+          command: transactional-update run /tmp/update-selinux.sh
+          register: __sles_update
+
+        - name: Clean up script
+          file:
+            path: /tmp/update-selinux.sh
+            state: absent
 
     - name: Show __disable_result
       debug:
@@ -94,10 +119,11 @@
       register: __enable_result
       when: __disable_result.reboot_required
 
-    - name: Remove selinux=0 from kernel args
+    - name: Remove selinux=0 from kernel args (RHEL)
       when:
         - not __test_update_kernel_param
         - __enable_result.reboot_required
+        - ansible_distribution not in ['SLES', 'SUSE']
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
@@ -107,6 +133,30 @@
               - name: selinux
                 value: "0"
                 state: absent
+
+    - name: Remove selinux=0 from kernel args (SLES)
+      when:
+        - not __test_update_kernel_param
+        - __enable_result.reboot_required
+        - ansible_distribution in ['SLES', 'SUSE']
+      block:
+        - name: Create transactional update script
+          copy:
+            dest: /tmp/update-selinux.sh
+            content: |
+              #!/bin/bash
+              sed -i 's/ selinux=0//' /etc/default/grub
+              grub2-mkconfig -o /boot/grub2/grub.cfg
+            mode: '0755'
+
+        - name: Run transactional update
+          command: transactional-update run /tmp/update-selinux.sh
+          register: __sles_update_restore
+
+        - name: Clean up script
+          file:
+            path: /tmp/update-selinux.sh
+            state: absent
 
     - name: Reboot
       reboot:
