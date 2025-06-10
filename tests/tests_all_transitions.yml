@@ -72,7 +72,7 @@
         update_kernel_param: "{{ true if __test_update_kernel_param else omit }}"
       register: __disable_result
 
-    - name: Add selinux=0 to kernel args
+    - name: Add selinux=0 to kernel args (RHEL)
       when:
         - not __test_update_kernel_param
         - __disable_result.reboot_required
@@ -86,6 +86,14 @@
               - name: selinux
                 value: "0"
                 state: present
+
+    - name: Add selinux=0 to kernel args (SLES)
+      when:
+        - not __test_update_kernel_param
+        - __disable_result.reboot_required
+        - ansible_distribution in ['SLES', 'SUSE']
+      command: transactional-update run grub2-mkconfig -o /boot/grub2/grub.cfg
+      register: __sles_grub_update
 
     - name: Show __disable_result
       debug:
@@ -121,7 +129,7 @@
       register: __enable_result
       when: __disable_result.reboot_required
 
-    - name: Remove selinux=0 from kernel args
+    - name: Remove selinux=0 from kernel args (RHEL)
       when:
         - not __test_update_kernel_param
         - __enable_result.reboot_required
@@ -135,6 +143,14 @@
               - name: selinux
                 value: "0"
                 state: absent
+
+    - name: Remove selinux=0 from kernel args (SLES)
+      when:
+        - not __test_update_kernel_param
+        - __enable_result.reboot_required
+        - ansible_distribution in ['SLES', 'SUSE']
+      command: transactional-update run grub2-mkconfig -o /boot/grub2/grub.cfg
+      register: __sles_grub_update_restore
 
     - name: Final reboot if needed
       reboot:
