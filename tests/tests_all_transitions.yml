@@ -44,39 +44,16 @@
           ansible_facts['distribution_major_version'] is version('8', '>=') and
           ansible_version.full is version('2.10', '>=') }}"
 
-    # First test non-reboot transitions (permissive <-> enforcing)
-    - name: Test non-reboot transitions
-      include_tasks: selinux_test_transitions.yml
-      vars:
-        selinux_initial_state: "{{ item.0 }}"
-        selinux_desired_state: "{{ item.1 }}"
-      with_nested:
-        - ["permissive", "enforcing"]
-        - ["permissive", "enforcing"]
-      when: item.0 != item.1  # Skip same-state transitions
-
-    # Then test transitions involving disabled state
-    - name: Test transitions to disabled
-      include_tasks: selinux_test_transitions.yml
-      vars:
-        selinux_initial_state: "{{ item.0 }}"
-        selinux_desired_state: "{{ item.1 }}"
-      with_nested:
-        - ["permissive", "enforcing"]
-        - ["disabled"]
-      when: item.0 != item.1  # Skip same-state transitions
-
     - name: Disable selinux and set kernel
       ansible.posix.selinux:
         state: disabled
         update_kernel_param: "{{ true if __test_update_kernel_param else omit }}"
       register: __disable_result
 
-    - name: Add selinux=0 to kernel args (RHEL)
+    - name: Add selinux=0 to kernel args
       when:
         - not __test_update_kernel_param
         - __disable_result.reboot_required
-        - ansible_distribution not in ['SLES', 'SUSE']  # Skip on SLES/SUSE
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
@@ -87,34 +64,22 @@
                 value: "0"
                 state: present
 
-    - name: Add selinux=0 to kernel args (SLES)
-      when:
-        - not __test_update_kernel_param
-        - __disable_result.reboot_required
-        - ansible_distribution in ['SLES', 'SUSE']
-      command: transactional-update run grub2-mkconfig -o /boot/grub2/grub.cfg
-      register: __sles_grub_update
-
     - name: Show __disable_result
       debug:
         msg: __disable_result is {{ __disable_result | to_nice_json }}
 
-    - name: Reboot if needed
+    - name: Reboot
       reboot:
-        msg: "Rebooting to apply SELinux state change"
-        pre_reboot_delay: 2
-        post_reboot_delay: 10
-        reboot_timeout: 300
       when: __disable_result.reboot_required
 
-    # After reboot, test transitions from disabled
-    - name: Test transitions from disabled
+    - name: Test all the possible state transitions
       include_tasks: selinux_test_transitions.yml
       vars:
-        selinux_initial_state: "disabled"
-        selinux_desired_state: "{{ item }}"
-      with_items: ["permissive", "enforcing"]
-      when: __disable_result.reboot_required
+        selinux_initial_state: "{{ item.0 }}"
+        selinux_desired_state: "{{ item.1 }}"
+      with_nested:
+        - "{{ states }}"
+        - "{{ states }}"
 
     - name: Restore config
       include_tasks: selinux_config_restore.yml
@@ -129,11 +94,10 @@
       register: __enable_result
       when: __disable_result.reboot_required
 
-    - name: Remove selinux=0 from kernel args (RHEL)
+    - name: Remove selinux=0 from kernel args
       when:
         - not __test_update_kernel_param
         - __enable_result.reboot_required
-        - ansible_distribution not in ['SLES', 'SUSE']  # Skip on SLES/SUSE
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
@@ -144,18 +108,6 @@
                 value: "0"
                 state: absent
 
-    - name: Remove selinux=0 from kernel args (SLES)
-      when:
-        - not __test_update_kernel_param
-        - __enable_result.reboot_required
-        - ansible_distribution in ['SLES', 'SUSE']
-      command: transactional-update run grub2-mkconfig -o /boot/grub2/grub.cfg
-      register: __sles_grub_update_restore
-
-    - name: Final reboot if needed
+    - name: Reboot
       reboot:
-        msg: "Rebooting to restore original SELinux state"
-        pre_reboot_delay: 2
-        post_reboot_delay: 10
-        reboot_timeout: 300
       when: __enable_result.reboot_required
