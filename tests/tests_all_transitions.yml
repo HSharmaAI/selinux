@@ -71,23 +71,16 @@
         - __disable_result.reboot_required
         - ansible_distribution in ['SLES', 'SUSE']
       block:
-        - name: Create transactional update script
-          copy:
-            dest: /tmp/update-selinux.sh
-            content: |
-              #!/bin/bash
-              sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& selinux=0/' /etc/default/grub
-              grub2-mkconfig -o /boot/grub2/grub.cfg
-            mode: '0755'
+        - name: Modify GRUB default config
+          lineinfile:
+            path: /etc/default/grub
+            regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+            line: 'GRUB_CMDLINE_LINUX_DEFAULT="selinux=0"'
+            state: present
 
-        - name: Run transactional update
-          command: transactional-update run /tmp/update-selinux.sh
-          register: __sles_update
-
-        - name: Clean up script
-          file:
-            path: /tmp/update-selinux.sh
-            state: absent
+        - name: Update GRUB config
+          command: grub2-mkconfig -o /boot/grub2/grub.cfg
+          register: __sles_grub_update
 
     - name: Show __disable_result
       debug:
@@ -140,23 +133,16 @@
         - __enable_result.reboot_required
         - ansible_distribution in ['SLES', 'SUSE']
       block:
-        - name: Create transactional update script
-          copy:
-            dest: /tmp/update-selinux.sh
-            content: |
-              #!/bin/bash
-              sed -i 's/ selinux=0//' /etc/default/grub
-              grub2-mkconfig -o /boot/grub2/grub.cfg
-            mode: '0755'
+        - name: Remove selinux parameter from GRUB default config
+          lineinfile:
+            path: /etc/default/grub
+            regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+            line: 'GRUB_CMDLINE_LINUX_DEFAULT=""'
+            state: present
 
-        - name: Run transactional update
-          command: transactional-update run /tmp/update-selinux.sh
-          register: __sles_update_restore
-
-        - name: Clean up script
-          file:
-            path: /tmp/update-selinux.sh
-            state: absent
+        - name: Update GRUB config
+          command: grub2-mkconfig -o /boot/grub2/grub.cfg
+          register: __sles_grub_update_restore
 
     - name: Reboot
       reboot:
