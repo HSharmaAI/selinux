@@ -63,7 +63,7 @@
         - name: Assert expected state
           assert:
             that:
-              - getenforce.stdout | trim == "Permissive"
+              - getenforce.stdout | trim | lower == "permissive"
               - selinux_role_boolean.stdout is match('^samba_enable_home_dirs.*on.*on')
               - selinux_role_login.stdout is match('^sar-user.*staff_u.*s0')
               - selinux_role_port.stdout is match('^ssh_port_t.*22100')
