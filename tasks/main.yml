@@ -60,6 +60,7 @@
       when:
         - not __update_kernel_param
         - selinux_reboot_required | bool
+        - ansible_distribution not in ['SLES', 'SUSE']  # Skip on SLES/SUSE
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
