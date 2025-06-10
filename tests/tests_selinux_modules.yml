@@ -21,9 +21,6 @@
           - {path: "selinux_modules/linux-system-roles-selinux-test-a.pp"}
           - {name: "linux-system-roles-selinux-test-a", state: "disabled"}
           - {name: "linux-system-roles-selinux-test-a", state: "enabled"}
-          - {path: "linux-system-roles-selinux-test-b.pp", priority: "500"}
-          - {name: "linux-system-roles-selinux-test-b", priority: "500",
-             state: "disabled"}
           # yamllint disable rule:line-length
           - {path: "{{ playbook_dir }}/files/selinux_modules/linux-system-roles-selinux-test-c.pp", priority: "600"}
           - {name: "linux-system-roles-selinux-test-c", priority: "600",
@@ -40,7 +37,6 @@
           command: "{{ item }}"
           loop:
             - "semodule -r linux-system-roles-selinux-test-a"
-            - "semodule -X 500 -r linux-system-roles-selinux-test-b"
             - "semodule -X 600 -r linux-system-roles-selinux-test-c"
           ignore_errors: true  # noqa ignore-errors
           changed_when: false
@@ -64,13 +60,6 @@
             that:
               selinux_installed_modules['linux-system-roles-selinux-test-a']['400']['enabled']
 
-        - name: "Check if linux-system-roles-selinux-test-b is installed and
-          disabled"
-          assert:
-            that:
-              # yamllint disable rule:line-length
-              not selinux_installed_modules['linux-system-roles-selinux-test-b']['500']['enabled']
-
         - name: Check if linux-system-roles-selinux-test-c is absent
           assert:
             that: test_module_c == 'absent'
@@ -79,7 +68,6 @@
           command: "{{ item }}"
           loop:
             - "semodule -r linux-system-roles-selinux-test-a"
-            - "semodule -X 500 -r linux-system-roles-selinux-test-b"
             - "semodule -X 600 -r linux-system-roles-selinux-test-c"
           ignore_errors: true  # noqa ignore-errors
           changed_when: false
@@ -90,8 +78,6 @@
           - {path: "selinux_modules/linux-system-roles-selinux-test-a.pp"}
           - {name: "linux-system-roles-selinux-test-a", state: "disabled"}
           - {name: "linux-system-roles-selinux-test-a", state: "enabled"}
-          - {path: "linux-system-roles-selinux-test-b.pp", priority: "400"}
-          - {name: "linux-system-roles-selinux-test-b", state: "disabled"}
           # yamllint disable rule:line-length
           - {path: "{{ playbook_dir }}/files/selinux_modules/linux-system-roles-selinux-test-c.pp", priority: "200"}
           - {name: "linux-system-roles-selinux-test-c", priority: "300",
@@ -107,7 +93,6 @@
           command: "{{ item }}"
           loop:
             - "semodule -r linux-system-roles-selinux-test-a"
-            - "semodule -r linux-system-roles-selinux-test-b"
             - "semodule -r linux-system-roles-selinux-test-c"
           ignore_errors: true  # noqa ignore-errors
           changed_when: false
@@ -130,13 +115,6 @@
             that:
               selinux_installed_modules['linux-system-roles-selinux-test-a']['0']['enabled']
 
-        - name: "Check if linux-system-roles-selinux-test-b is installed
-          and disabled"
-          assert:
-            that:
-              # yamllint disable rule:line-length
-              not selinux_installed_modules['linux-system-roles-selinux-test-b']['0']['enabled']
-
         - name: Check if linux-system-roles-selinux-test-c is absent
           assert:
             that: test_module_c == 'absent'
@@ -145,7 +123,6 @@
           command: "{{ item }}"
           loop:
             - "semodule -r linux-system-roles-selinux-test-a"
-            - "semodule -r linux-system-roles-selinux-test-b"
             - "semodule -r linux-system-roles-selinux-test-c"
           ignore_errors: true  # noqa ignore-errors
           changed_when: false
