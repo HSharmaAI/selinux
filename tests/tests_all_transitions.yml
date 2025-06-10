@@ -44,6 +44,28 @@
           ansible_facts['distribution_major_version'] is version('8', '>=') and
           ansible_version.full is version('2.10', '>=') }}"
 
+    # First test non-reboot transitions (permissive <-> enforcing)
+    - name: Test non-reboot transitions
+      include_tasks: selinux_test_transitions.yml
+      vars:
+        selinux_initial_state: "{{ item.0 }}"
+        selinux_desired_state: "{{ item.1 }}"
+      with_nested:
+        - ["permissive", "enforcing"]
+        - ["permissive", "enforcing"]
+      when: item.0 != item.1  # Skip same-state transitions
+
+    # Then test transitions involving disabled state
+    - name: Test transitions to disabled
+      include_tasks: selinux_test_transitions.yml
+      vars:
+        selinux_initial_state: "{{ item.0 }}"
+        selinux_desired_state: "{{ item.1 }}"
+      with_nested:
+        - ["permissive", "enforcing"]
+        - ["disabled"]
+      when: item.0 != item.1  # Skip same-state transitions
+
     - name: Disable selinux and set kernel
       ansible.posix.selinux:
         state: disabled
@@ -54,7 +76,7 @@
       when:
         - not __test_update_kernel_param
         - __disable_result.reboot_required
-        - ansible_distribution not in ['SLES', 'SUSE']
+        - ansible_distribution not in ['SLES', 'SUSE']  # Skip on SLES/SUSE
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
@@ -69,18 +91,22 @@
       debug:
         msg: __disable_result is {{ __disable_result | to_nice_json }}
 
-    - name: Reboot
+    - name: Reboot if needed
       reboot:
+        msg: "Rebooting to apply SELinux state change"
+        pre_reboot_delay: 2
+        post_reboot_delay: 10
+        reboot_timeout: 300
       when: __disable_result.reboot_required
 
-    - name: Test all the possible state transitions
+    # After reboot, test transitions from disabled
+    - name: Test transitions from disabled
       include_tasks: selinux_test_transitions.yml
       vars:
-        selinux_initial_state: "{{ item.0 }}"
-        selinux_desired_state: "{{ item.1 }}"
-      with_nested:
-        - "{{ states }}"
-        - "{{ states }}"
+        selinux_initial_state: "disabled"
+        selinux_desired_state: "{{ item }}"
+      with_items: ["permissive", "enforcing"]
+      when: __disable_result.reboot_required
 
     - name: Restore config
       include_tasks: selinux_config_restore.yml
@@ -99,7 +125,7 @@
       when:
         - not __test_update_kernel_param
         - __enable_result.reboot_required
-        - ansible_distribution not in ['SLES', 'SUSE']
+        - ansible_distribution not in ['SLES', 'SUSE']  # Skip on SLES/SUSE
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
@@ -110,6 +136,10 @@
                 value: "0"
                 state: absent
 
-    - name: Reboot
+    - name: Final reboot if needed
       reboot:
+        msg: "Rebooting to restore original SELinux state"
+        pre_reboot_delay: 2
+        post_reboot_delay: 10
+        reboot_timeout: 300
       when: __enable_result.reboot_required
