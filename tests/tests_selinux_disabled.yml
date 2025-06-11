@@ -16,6 +16,10 @@
       login -a -s staff_u sar-user
 
   tasks:
+    - name: Skip test on SLES systems
+      meta: end_play
+      when: ansible_distribution in ['SLES', 'SUSE']
+
     - name: Ensure SELinux test packages
       include_tasks:
         file: set_selinux_variables.yml
@@ -80,6 +84,27 @@
         mount -t selinuxfs selinuxfs {{ selinux_mountpoint.stdout }}
       changed_when: false
       when: selinux_mountpoint.stdout != ""
+      register: mount_result
+      ignore_errors: true
+
+    - name: Add SELinux filesystem to /etc/fstab if mount failed
+      lineinfile:
+        path: /etc/fstab
+        line: "selinuxfs {{ selinux_mountpoint.stdout }} selinuxfs defaults 0 0"
+        state: present
+      when: 
+        - selinux_mountpoint.stdout != ""
+        - mount_result is failed
+
+    - name: Retry mount after adding to /etc/fstab
+      # noqa command-instead-of-module
+      command: >-
+        mount -t selinuxfs selinuxfs {{ selinux_mountpoint.stdout }}
+      changed_when: false
+      when: 
+        - selinux_mountpoint.stdout != ""
+        - mount_result is failed
+
     - name: Switch back to enforcing
       command: setenforce 1
       changed_when: false
