@@ -53,7 +53,7 @@
     - name: Add selinux=0 to kernel args
       when:
         - not __test_update_kernel_param
-        - __disable_result.reboot_required
+        - __disable_result.reboot_required | default(false)
         - ansible_distribution not in ['SLES', 'SUSE']
       include_role:
         name: fedora.linux_system_roles.bootloader
@@ -68,7 +68,7 @@
     - name: Add selinux=0 to kernel args (SLES)
       when:
         - not __test_update_kernel_param
-        - __disable_result.reboot_required
+        - __disable_result.reboot_required | default(false)
         - ansible_distribution in ['SLES', 'SUSE']
       block:
         - name: Get current kernel parameters
@@ -86,7 +86,7 @@
 
     - name: Reboot
       reboot:
-      when: __disable_result.reboot_required
+      when: __disable_result.reboot_required | default(false)
 
     - name: Test all the possible state transitions
       include_tasks: selinux_test_transitions.yml
@@ -104,16 +104,14 @@
       ansible.posix.selinux:
         state: "{{ __state_before }}"
         policy: "{{ __type_before }}"
-        update_kernel_param: "{{ true if ansible_facts['os_family'] == 'RedHat' and
-          ansible_facts['distribution_major_version'] is version('8', '>=')
-          else omit }}"
+        update_kernel_param: "{{ true if __test_update_kernel_param else omit }}"
       register: __enable_result
-      when: __disable_result.reboot_required
+      when: __disable_result.reboot_required | default(false)
 
     - name: Remove selinux=0 from kernel args
       when:
         - not __test_update_kernel_param
-        - __enable_result.reboot_required
+        - __enable_result.reboot_required | default(false)
         - ansible_distribution not in ['SLES', 'SUSE']
       include_role:
         name: fedora.linux_system_roles.bootloader
@@ -128,7 +126,8 @@
     - name: Remove selinux=0 from kernel args (SLES)
       when:
         - not __test_update_kernel_param
-        - __enable_result.reboot_required
+        - __enable_result is defined
+        - __enable_result.reboot_required | default(false)
         - ansible_distribution in ['SLES', 'SUSE']
       block:
         - name: Get current kernel parameters
@@ -142,4 +141,4 @@
 
     - name: Reboot
       reboot:
-      when: __enable_result.reboot_required
+      when: __enable_result.reboot_required | default(false)
