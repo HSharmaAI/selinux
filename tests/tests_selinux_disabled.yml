@@ -79,6 +79,7 @@
       command: >-
         mount -t selinuxfs selinuxfs {{ selinux_mountpoint.stdout }}
       changed_when: false
+      when: selinux_mountpoint.stdout != ""
     - name: Switch back to enforcing
       command: setenforce 1
       changed_when: false
