@@ -78,6 +78,7 @@
         - not __update_kernel_param
         - selinux_reboot_required | bool
         - ansible_distribution in ['SLES', 'SUSE']
+        - selinux_mod_output_enabled is defined
       block:
         - name: Get current kernel parameters
           command: grub2-editenv /boot/grub2/grubenv list
