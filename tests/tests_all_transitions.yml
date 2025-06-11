@@ -65,6 +65,21 @@
                 value: "0"
                 state: present
 
+    - name: Add selinux=0 to kernel args (SLES)
+      when:
+        - not __test_update_kernel_param
+        - __disable_result.reboot_required
+        - ansible_distribution in ['SLES', 'SUSE']
+      block:
+        - name: Get current kernel parameters
+          command: grub2-editenv /boot/grub2/grubenv list
+          register: current_params
+          changed_when: false
+
+        - name: Add selinux=0 to kernel parameters
+          command: grub2-editenv /boot/grub2/grubenv set kernelopts="selinux=0"
+          register: __sles_grub_update
+
     - name: Show __disable_result
       debug:
         msg: __disable_result is {{ __disable_result | to_nice_json }}
@@ -109,6 +124,21 @@
               - name: selinux
                 value: "0"
                 state: absent
+
+    - name: Remove selinux=0 from kernel args (SLES)
+      when:
+        - not __test_update_kernel_param
+        - __enable_result.reboot_required
+        - ansible_distribution in ['SLES', 'SUSE']
+      block:
+        - name: Get current kernel parameters
+          command: grub2-editenv /boot/grub2/grubenv list
+          register: current_params
+          changed_when: false
+
+        - name: Remove selinux parameter
+          command: grub2-editenv /boot/grub2/grubenv set kernelopts=""
+          register: __sles_grub_update_restore
 
     - name: Reboot
       reboot:

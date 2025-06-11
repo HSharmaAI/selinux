@@ -80,17 +80,17 @@
         - ansible_distribution in ['SLES', 'SUSE']
       block:
         - name: Get current kernel parameters
-          command: grub2-editenv list
+          command: grub2-editenv /boot/grub2/grubenv list
           register: current_params
           changed_when: false
 
         - name: Add selinux=0 to kernel parameters
-          command: grub2-editenv set kernelopts="selinux=0"
+          command: grub2-editenv /boot/grub2/grubenv set kernelopts="selinux=0"
           when: selinux_mod_output_enabled.reboot_required | default(false)
           register: __sles_grub_update
 
         - name: Remove selinux parameter
-          command: grub2-editenv set kernelopts=""
+          command: grub2-editenv /boot/grub2/grubenv set kernelopts=""
           when: not (selinux_mod_output_enabled.reboot_required | default(false))
           register: __sles_grub_update_restore
 
