@@ -54,7 +54,7 @@
       when:
         - not __test_update_kernel_param
         - __disable_result.reboot_required
-        - ansible_distribution not in ['SLES', 'SUSE']
+        - ansible_distribution not in ['SLES', 'SUSE']  # Skip on SLES/SUSE
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
@@ -99,7 +99,7 @@
       when:
         - not __test_update_kernel_param
         - __enable_result.reboot_required
-        - ansible_distribution not in ['SLES', 'SUSE']
+        - ansible_distribution not in ['SLES', 'SUSE']  # Skip on SLES/SUSE
       include_role:
         name: fedora.linux_system_roles.bootloader
       vars:
